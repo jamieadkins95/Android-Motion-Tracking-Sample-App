@@ -34,8 +34,6 @@ import android.view.Surface;
 import org.rajawali3d.scene.ASceneFrameCallback;
 import org.rajawali3d.surface.RajawaliSurfaceView;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
 /**
  * This is a simple example that shows how to use the Tango APIs to create an augmented reality (AR)
  * application. It displays the Planet Earth floating in space one meter in front of the device, and
@@ -57,7 +55,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * If you're looking for a more stripped down example that doesn't use a rendering library like
  * Rajawali, see java_hello_video_example.
  */
-public class AugmentedRealityActivity extends Activity {
+public class AugmentedRealityActivity extends Activity
+        implements PoseProvider.PoseProviderListener {
     private static final String TAG = AugmentedRealityActivity.class.getSimpleName();
     private static final int INVALID_TEXTURE_ID = 0;
 
@@ -68,14 +67,11 @@ public class AugmentedRealityActivity extends Activity {
     private AugmentedRealityRenderer mRenderer;
     private Intrinsics mIntrinsics;
 
-    private SensorManager mSensorManager;
-    private Sensor m6DoFSensor;
+    private PoseProvider mPoseProvider;
 
     // Texture rendering related fields.
     // NOTE: Naming indicates which thread is in charge of updating this variable.
     private int mConnectedTextureIdGlThread = INVALID_TEXTURE_ID;
-    private AtomicBoolean mIsFrameAvailableTangoThread = new AtomicBoolean(false);
-    private double mRgbTimestampGlThread;
 
     private int mColorCameraToDisplayAndroidRotation = 0;
 
@@ -111,6 +107,13 @@ public class AugmentedRealityActivity extends Activity {
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+        mPoseProvider = new SamplePoseProvider(this, this);
+        mPoseProvider.setup();
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
         mSurfaceView.onResume();
@@ -120,16 +123,6 @@ public class AugmentedRealityActivity extends Activity {
         // Set render mode to RENDERMODE_CONTINUOUSLY to force getting onDraw callbacks until the
         // Tango service is properly set-up and we start getting onFrameAvailable callbacks.
         mSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
-
-        mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-
-        m6DoFSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_POSE_6DOF);
-        boolean setupSuccessful = mSensorManager.registerListener(mSensorListener, m6DoFSensor,
-                SensorManager.SENSOR_DELAY_FASTEST);
-
-        if (!setupSuccessful) {
-            Log.e(TAG, "Failed to set 6dof sensor");
-        }
     }
 
     @Override
@@ -144,19 +137,9 @@ public class AugmentedRealityActivity extends Activity {
         synchronized (this) {
             mRenderer.disconnectCamera();
         }
+
+        mPoseProvider.onStopPoseProviding();
     }
-
-    private SensorEventListener mSensorListener = new SensorEventListener() {
-        @Override
-        public void onSensorChanged(SensorEvent event) {
-            mRenderer.updateRenderCameraPose(new PoseData(event.values, event.timestamp));
-        }
-
-        @Override
-        public void onAccuracyChanged(Sensor sensor, int accuracy) {
-        }
-    };
-
 
     /**
      * Connects the view and renderer to the color camara and callbacks.
@@ -191,8 +174,7 @@ public class AugmentedRealityActivity extends Activity {
                             Log.d(TAG, "connected to texture id: " + mRenderer.getTextureId());
                         }
 
-                        mRgbTimestampGlThread = mRenderer.updateTexture();
-
+                        mRenderer.updateTexture();
                     }
                 } catch (Throwable t) {
                     Log.e(TAG, "Exception on the OpenGL thread", t);
@@ -305,5 +287,15 @@ public class AugmentedRealityActivity extends Activity {
                 getColorCameraToDisplayAndroidRotation(display.getRotation(),
                         colorCameraInfo.orientation);
         mRenderer.updateColorCameraTextureUv(mColorCameraToDisplayAndroidRotation);
+    }
+
+    @Override
+    public void onSetupComplete() {
+        mPoseProvider.onStartPoseProviding();
+    }
+
+    @Override
+    public void onNewPoseData(PoseData newPoseData) {
+        mRenderer.updateRenderCameraPose(newPoseData);
     }
 }
