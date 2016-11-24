@@ -26,4 +26,7 @@ dependencies {
     })
     compile 'com.android.support:appcompat-v7:25.0.1'
     testCompile 'junit:junit:4.12'
+
+
+    compile 'org.rajawali3d:rajawali:1.0.325@aar'
 }
