@@ -23,6 +23,9 @@ public abstract class PoseProvider {
     public PoseProvider(Context context, PoseProviderListener listener) {
         mContext = context;
         mPoseProviderListener = listener;
+
+        // Android APIs don't provide a way to obtain camera intrinsics so we spoof them instead.
+        mIntrinsics = new Intrinsics();
     }
 
     public abstract void onStartPoseProviding();

@@ -1,10 +1,6 @@
 package com.jamieadkins.motiontrackingsample;
 
 import android.content.Context;
-import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
-import android.hardware.SensorManager;
 import android.util.Log;
 
 import com.google.atap.tangoservice.Tango;
@@ -96,10 +92,8 @@ public class SamplePoseProvider extends PoseProvider {
             @Override
             public void onPoseAvailable(final TangoPoseData pose) {
                 synchronized (POSE_LOCK) {
-                    synchronized (POSE_LOCK) {
-                        mLatestPoseData = new PoseData(pose.getTranslationAsFloats(),
-                                pose.getRotationAsFloats(), (long) pose.timestamp);
-                    }
+                    mLatestPoseData = new PoseData(pose.getTranslationAsFloats(),
+                            pose.getRotationAsFloats(), (long) pose.timestamp);
 
                     // Log whenever Motion Tracking enters an invalid state.
                     if (pose.statusCode == TangoPoseData.POSE_INVALID) {

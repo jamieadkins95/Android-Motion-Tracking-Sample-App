@@ -26,6 +26,7 @@ android {
 
         tango {
             applicationIdSuffix ".tango"
+            minSdkVersion 23
         }
     }
 }

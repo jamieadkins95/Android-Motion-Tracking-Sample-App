@@ -34,45 +34,32 @@ import org.rajawali3d.scene.ASceneFrameCallback;
 import org.rajawali3d.surface.RajawaliSurfaceView;
 
 /**
- * This is a simple example that shows how to use the Tango APIs to create an augmented reality (AR)
- * application. It displays the Planet Earth floating in space one meter in front of the device, and
- * the Moon rotating around it.
+ * This is a simple example that shows how to use the Android Sensor APIs to create an augmented
+ * reality (AR)application. It displays the Planet Earth floating in space one meter in front of the
+ * device, and the Moon rotating around it.
  * <p/>
  * This example uses Rajawali for the OpenGL rendering. This includes the color camera image in the
  * background and a 3D sphere with a texture of the Earth floating in space three meter forward.
  * This part is implemented in the {@code AugmentedRealityRenderer} class, like a regular Rajawali
  * application.
  * <p/>
- * This example focuses on how to use the Tango APIs to get the color camera data into an OpenGL
- * texture efficiently and have the OpenGL camera track the movement of the device in order to
- * achieve an augmented reality effect.
- * <p/>
- * Note that it is important to include the KEY_BOOLEAN_LOWLATENCYIMUINTEGRATION configuration
- * parameter in order to achieve best results synchronizing the Rajawali virtual world with the
- * RGB camera.
- * <p/>
- * If you're looking for a more stripped down example that doesn't use a rendering library like
- * Rajawali, see java_hello_video_example.
+ * This example also uses the Camera2 API to obtain the color camera image for the AR effect.
  */
 public class AugmentedRealityActivity extends Activity
         implements PoseProvider.PoseProviderListener {
     private static final String TAG = AugmentedRealityActivity.class.getSimpleName();
     private static final int INVALID_TEXTURE_ID = 0;
-
-    // For all current Tango devices, color camera is in the camera id 0.
     private static final int COLOR_CAMERA_ID = 0;
+    private static final int PERMISSIONS_REQUEST_CODE = 1112;
 
     private RajawaliSurfaceView mSurfaceView;
     private AugmentedRealityRenderer mRenderer;
-    private Intrinsics mIntrinsics;
 
     private PoseProvider mPoseProvider;
 
     private boolean mCameraPermissionGranted = false;
 
-    // Texture rendering related fields.
-    // NOTE: Naming indicates which thread is in charge of updating this variable.
-    private int mConnectedTextureIdGlThread = INVALID_TEXTURE_ID;
+    private int mConnectedTextureId = INVALID_TEXTURE_ID;
 
     private int mColorCameraToDisplayAndroidRotation = 0;
 
@@ -101,15 +88,12 @@ public class AugmentedRealityActivity extends Activity
             }, null);
         }
 
-        // Obtain the intrinsic parameters of the color camera.
-        mIntrinsics = new Intrinsics();
-
         mCameraPermissionGranted = ContextCompat.checkSelfPermission(this,
                 Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
 
         if (!mCameraPermissionGranted) {
             ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.CAMERA}, 3294);
+                    new String[]{Manifest.permission.CAMERA}, PERMISSIONS_REQUEST_CODE);
         }
 
         setupRenderer();
@@ -126,7 +110,7 @@ public class AugmentedRealityActivity extends Activity
     public void onRequestPermissionsResult(int requestCode,
                                            String permissions[], int[] grantResults) {
         switch (requestCode) {
-            case 3294:
+            case PERMISSIONS_REQUEST_CODE:
                 mCameraPermissionGranted = grantResults.length > 0
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED;
                 break;
@@ -184,7 +168,8 @@ public class AugmentedRealityActivity extends Activity
                         // Set-up scene camera projection to match RGB camera intrinsics.
                         if (!mRenderer.isSceneCameraConfigured()) {
                             mRenderer.setProjectionMatrix(
-                                    projectionMatrixFromCameraIntrinsics(mIntrinsics,
+                                    projectionMatrixFromCameraIntrinsics(
+                                            mPoseProvider.getIntrinsics(),
                                             mColorCameraToDisplayAndroidRotation));
                         }
 
@@ -192,9 +177,9 @@ public class AugmentedRealityActivity extends Activity
                             // Connect the camera texture to the OpenGL Texture if necessary
                             // NOTE: When the OpenGL context is recycled, Rajawali may re-generate the
                             // texture with a different ID.
-                            if (mConnectedTextureIdGlThread != mRenderer.getTextureId()) {
+                            if (mConnectedTextureId != mRenderer.getTextureId()) {
                                 mRenderer.connectCamera();
-                                mConnectedTextureIdGlThread = mRenderer.getTextureId();
+                                mConnectedTextureId = mRenderer.getTextureId();
                                 Log.d(TAG, "connected to texture id: " + mRenderer.getTextureId());
                             }
 
