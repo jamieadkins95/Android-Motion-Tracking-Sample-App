@@ -171,6 +171,7 @@ public class AugmentedRealityRenderer extends RajawaliRenderer {
         if (mBackgroundQuad == null) {
             mBackgroundQuad = new ScreenQuad();
         }
+        mBackgroundQuad.getGeometry().getTextureCoords().clear();
 
         switch (rotation) {
             case Surface.ROTATION_90:
