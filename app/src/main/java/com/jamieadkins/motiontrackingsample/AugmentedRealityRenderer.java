@@ -227,7 +227,9 @@ public class AugmentedRealityRenderer extends RajawaliRenderer {
     }
 
     public void disconnectCamera() {
-        mCameraManager.onStopCameraStream();
+        if (mCameraManager != null) {
+            mCameraManager.onStopCameraStream();
+        }
     }
 
     /**

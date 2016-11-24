@@ -16,17 +16,16 @@
 
 package com.jamieadkins.motiontrackingsample;
 
+import android.Manifest;
 import android.app.Activity;
-import android.content.Context;
+import android.content.pm.PackageManager;
 import android.hardware.Camera;
-import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
-import android.hardware.SensorManager;
 import android.hardware.display.DisplayManager;
 import android.opengl.GLSurfaceView;
 import android.opengl.Matrix;
 import android.os.Bundle;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.view.Display;
 import android.view.Surface;
@@ -69,6 +68,8 @@ public class AugmentedRealityActivity extends Activity
 
     private PoseProvider mPoseProvider;
 
+    private boolean mCameraPermissionGranted = false;
+
     // Texture rendering related fields.
     // NOTE: Naming indicates which thread is in charge of updating this variable.
     private int mConnectedTextureIdGlThread = INVALID_TEXTURE_ID;
@@ -103,6 +104,14 @@ public class AugmentedRealityActivity extends Activity
         // Obtain the intrinsic parameters of the color camera.
         mIntrinsics = new Intrinsics();
 
+        mCameraPermissionGranted = ContextCompat.checkSelfPermission(this,
+                Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+
+        if (!mCameraPermissionGranted) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.CAMERA}, 3294);
+        }
+
         setupRenderer();
     }
 
@@ -111,6 +120,17 @@ public class AugmentedRealityActivity extends Activity
         super.onStart();
         mPoseProvider = new SamplePoseProvider(this, this);
         mPoseProvider.setup();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           String permissions[], int[] grantResults) {
+        switch (requestCode) {
+            case 3294:
+                mCameraPermissionGranted = grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+                break;
+        }
     }
 
     @Override
@@ -135,7 +155,9 @@ public class AugmentedRealityActivity extends Activity
         // will block here until all Tango callback calls are finished. If you lock against this
         // object in a Tango callback thread it will cause a deadlock.
         synchronized (this) {
-            mRenderer.disconnectCamera();
+            if (mCameraPermissionGranted) {
+                mRenderer.disconnectCamera();
+            }
         }
 
         mPoseProvider.onStopPoseProviding();
@@ -165,16 +187,19 @@ public class AugmentedRealityActivity extends Activity
                                     projectionMatrixFromCameraIntrinsics(mIntrinsics,
                                             mColorCameraToDisplayAndroidRotation));
                         }
-                        // Connect the camera texture to the OpenGL Texture if necessary
-                        // NOTE: When the OpenGL context is recycled, Rajawali may re-generate the
-                        // texture with a different ID.
-                        if (mConnectedTextureIdGlThread != mRenderer.getTextureId()) {
-                            mRenderer.connectCamera();
-                            mConnectedTextureIdGlThread = mRenderer.getTextureId();
-                            Log.d(TAG, "connected to texture id: " + mRenderer.getTextureId());
-                        }
 
-                        mRenderer.updateTexture();
+                        if (mCameraPermissionGranted) {
+                            // Connect the camera texture to the OpenGL Texture if necessary
+                            // NOTE: When the OpenGL context is recycled, Rajawali may re-generate the
+                            // texture with a different ID.
+                            if (mConnectedTextureIdGlThread != mRenderer.getTextureId()) {
+                                mRenderer.connectCamera();
+                                mConnectedTextureIdGlThread = mRenderer.getTextureId();
+                                Log.d(TAG, "connected to texture id: " + mRenderer.getTextureId());
+                            }
+
+                            mRenderer.updateTexture();
+                        }
                     }
                 } catch (Throwable t) {
                     Log.e(TAG, "Exception on the OpenGL thread", t);
